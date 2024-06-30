@@ -7,6 +7,7 @@ public class Main {
 
         InternetAddressApp app = new InternetAddressApp();
         app.run();
+
     }
 
 }

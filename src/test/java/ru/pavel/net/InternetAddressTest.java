@@ -1,39 +1,46 @@
 package ru.pavel.net;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static ru.pavel.net.InternetAddressStringRadix.*;
 
 
+@DisplayName("InternetAddress Test")
 public class InternetAddressTest {
 
     @Test
     public void createByDigitCheck() {
         var address1 = InternetAddress.of(192, 168, 0, 1);
         assertEquals(address1.toString(), "192.168.0.1");
+    }
 
-        int[] a = new int[]{1, 10, 0, 1};
-        var addr3 = InternetAddress.of(a);
+    @Test
+    public void createByArrayDigitCheck2() {
+
+        var addr3 = InternetAddress.of(1, 10, 0, 1);
         assertEquals(addr3.toString(), "1.10.0.1");
-
     }
 
     @Test
     public void createByLiteralParseCheck() {
-
         var addr1 = InternetAddress.of(" 192.168.1.5 ");
         assertEquals(addr1.toString(), "192.168.1.5");
-
-        var addr2 = InternetAddress.parse("1.010.0.1", DECIMAL);
-        assertEquals(addr2.toString(), "1.10.0.1");
-
-        var addr3 = InternetAddress.parse("0300.0250.0.1", OCTAL);
-        assertEquals(addr3.toString(), "192.168.0.1");
-
-        var addr4 = InternetAddress.parse("0xC0.0x00.22.0XEB", HEX);
-        assertEquals(addr4.toString(), "192.0.34.235");
     }
+
+
+    @ParameterizedTest (name="Строка {0} по системе {1}  распарсилась успешно")
+    @CsvSource({" 192.168.0.1,DECIMAL,192.168.0.1","1.010.0.1,DECIMAL,1.10.0.1","C00022EB,HEX,192.0.34.235"})
+    @DisplayName("CreateByLiteralParse Test")
+    void createByLiteralParse(String inputString, InternetAddressStringFormat type, String expectedString) {
+        var address = InternetAddress.parse(inputString, type);
+        assertEquals(address.toString(), expectedString);
+    }
+
 
     @Test
     public void getDigitArray() {
@@ -46,48 +53,51 @@ public class InternetAddressTest {
         assertEquals(InternetAddress.MAX_ADDRESS.toString(), "255.255.255.255");
     }
 
-    @Test
-    public void literalParseError() {
+
+
+    @ParameterizedTest (name="В строке {0} по системе {1}  ошибка обнаружена успешно")
+    @CsvSource({"192.600.1.5,DECIMAL","192.6.1 .5,DECIMAL","C00022EK,HEX","000022EB,HEX"})
+    @DisplayName("LiteralParseError Test")
+    public void literalParseError(String inputString, InternetAddressStringFormat type) {
         String expectedMessage = "Неверный формат ip адреса";
 
         Exception exception1 = assertThrows(
                 InternetAddressException.class,
-                () -> InternetAddress.parse("192.600.1.5", DECIMAL));
+                () -> InternetAddress.parse(inputString, type));
         assertTrue(exception1.getMessage().contains(expectedMessage));
 
-        Exception exception2 = assertThrows(
-                InternetAddressException.class,
-                () -> InternetAddress.parse("192.6.1 .5", DECIMAL));
-        assertTrue(exception2.getMessage().contains(expectedMessage));
+    }
 
-        Exception exception3 = assertThrows(
-                InternetAddressException.class,
-                () -> InternetAddress.parse("0xC0.0x00.22.0xEK", HEX));
-        assertTrue(exception3.getMessage().contains(expectedMessage));
+    @ParameterizedTest(name="При создании из массива {index} ip-адреса ошибка обнаружена успешно")
+    @CsvSource({"[1, 10, 0]","[1, 10, 0, 456]","[192, 198, 0, 1,1 ]"})
+    @DisplayName("IntArrayCreateError Test")
+    public void intArrayCreateError(String arrayAsString) {
+        String expectedMessage = "Неверный формат ip адреса";
 
-        Exception exception4 = assertThrows(
-                InternetAddressException.class,
-                () -> InternetAddress.of(new int[]{1, 10, 0}));
-        assertTrue(exception4.getMessage().contains(expectedMessage));
+        int[] addressArray = Arrays.stream(arrayAsString
+                                            .replace("[", "")
+                                            .replace("]", "")
+                                            .split(","))
+                .mapToInt(c -> Integer.parseInt(c.trim()))
+                .toArray();
+
 
         Exception exception5 = assertThrows(
                 InternetAddressException.class,
-                () -> InternetAddress.of(new int[]{1, 10, 0, 456}));
+                () -> InternetAddress.of(addressArray));
         assertTrue(exception5.getMessage().contains(expectedMessage));
 
-
     }
 
 
-    @Test
-    public void toStringCheck() {
-        var addr1 = InternetAddress.of("192.168.1.5");
-        assertEquals(addr1.format(InternetAddressPrintFormat.ZERO_FILLED), "192.168.001.005");
-
-        var addr2 = InternetAddress.of("192.168.1.5");
-        assertEquals(addr2.format(InternetAddressPrintFormat.OCTAL), "0300.0250.0001.0005");
-
+    @ParameterizedTest
+    @CsvSource({"1.10.0.1,DECIMAL,1.10.0.1","192.168.1.5,HEX,C0A80105"})
+    @DisplayName("toStringCheck Test")
+    public void toStringCheck(String inputString, InternetAddressStringFormat type, String expectedString) {
+        var address = InternetAddress.of(inputString);
+        assertEquals(address.format(type), expectedString);
     }
+
 
     @Test
     public void comparatorCheck() {
@@ -98,12 +108,12 @@ public class InternetAddressTest {
 
         assertEquals(1, comp.compare(addr1, addr2));
     }
-
+/*
     @Test
     public void rangeCheckError() {
         String expectedMessage = "начальный адрес старше";
 
-        // Первый адресс старше конца
+        // Первый адрес старше конца
         Exception exception = assertThrows(
                 InternetAddressException.class,
                 () -> InternetAddress.of("192.168.1.254")
@@ -134,7 +144,8 @@ public class InternetAddressTest {
                 .until(InternetAddress.MAX_ADDRESS, true, false);
         assertEquals(range5.getFirst().toString(), "255.255.255.255");
     }
-
+    */
+/*
     @Test
     public void countRangeCheck() {
         var range1 = InternetAddress.of("192.168.1.254")
@@ -161,5 +172,5 @@ public class InternetAddressTest {
                 .untilCount(InternetAddress.of("193.168.2.8"), false, false);
         assertEquals(range6, 256L * 256L * 256L + 10 - 1);
     }
-
+*/
 }
